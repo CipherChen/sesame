@@ -65,7 +65,7 @@ OS_LINUX = "Linux"
 
 SUPPORTED_OS = (
     OS_DARWIN,
-    # OS_LINUX,
+    OS_LINUX,
 )
 
 ################################################################################
@@ -75,22 +75,24 @@ class OSAdapter(object):
     def __init__(self):
         self.os_platform = platform.system()
 
+        self.clipboard = False
+        if self.os_platform in [OS_DARWIN]:
+            self.clipboard = True
+
     def copy_to_clipboard(self, s):
         _cmd = ""
         if self.os_platform == OS_DARWIN:
             _cmd = 'echo "{pwd}" | tr -d "\n" | pbcopy'.format(pwd=s)
-        # TODO to be tested.
-        elif self.os_platform == OS_LINUX:
-            _cmd = 'echo "{pwd}" | tr -d "\n" | xclip -selection clipboard'.format(pwd=s)
+        # elif self.os_platform == OS_LINUX:
+        #     _cmd = 'echo "{pwd}" | tr -d "\n" | xclip -selection clipboard'.format(pwd=s)
 
         exec_cmd(_cmd)
 
     def get_authorization_cmd(self, user):
         if self.os_platform == OS_DARWIN:
             return "dscl /Local/Default -authonly {u}".format(u=user)
-        # TODO to be tested.
-        elif self.os_platform == OS_LINUX:
-            return "su - {u}".format(u=user)
+        # elif self.os_platform == OS_LINUX:
+        #     return "su - {u}".format(u=user)
 
         return None
 
@@ -155,10 +157,16 @@ def _authorization():
     usr = g_config["usr"]
 
     cmd = g_os_adapter.get_authorization_cmd(usr)
+    # Not supported platform, no need to authorization.
+    if not cmd:
+        return
+
+    _log("Please enter password of [%s] to confirm READ/WRITE access to your pwd file..." % usr)
+
     try:
         ret = exec_cmd(cmd)
     except:
-        _error("Authenticate to user [%s] failed" % usr)
+        _error("Authorize to user [%s] failed." % usr)
         sys.exit(-1)
 
     if ret[0] != 0:
@@ -184,6 +192,9 @@ def random_generate_passwd():
 
 
 def get_site_user_passwds(pwd_file):
+    if not os.path.isfile(pwd_file):
+        return
+
     with open(pwd_file, "r") as f:
         for line in f.readlines():
             line = line.strip()
@@ -221,7 +232,7 @@ def add_p(pwd_file, site, username, pub_key, passwd=None):
     _authorization()
 
     if is_site_user_exist(pwd_file, site, username):
-        _log("Password for [%s:%s] already registered" % (site, username))
+        _log("Password for user [%s] on site [%s] has already been registered." % (username, site))
         return None
 
     if not passwd:
@@ -233,10 +244,14 @@ def add_p(pwd_file, site, username, pub_key, passwd=None):
         _s = " " + FIELD_SEPERATOR + " "
         f.write("\n" + _s.join((site.ljust(40), username.ljust(40), passwd_s)))
 
+    _log("Password for user [%s] on site [%s] has been added successfully." % (username, site))
+
     return passwd
 
 
 def rm_p(site, username, pwd_file, force):
+    _authorization()
+
     new_lines = []
     with open(pwd_file, "r") as f:
         for line in f.readlines():
@@ -261,6 +276,8 @@ def rm_p(site, username, pwd_file, force):
 
     with open(pwd_file, "w") as f:
         f.write("\n".join(new_lines))
+
+    _log("User [%s] for site [%s] has been removed successfully." % (username, site))
 
     return
 
@@ -315,6 +332,12 @@ def main(args):
         _s = add_p(_pwd_file, args.site, args.username, _public_key, passwd=args.password)
 
         g_os_adapter.copy_to_clipboard(s=_s)
+
+        if not g_os_adapter.clipboard or not args.password:
+            _log("Password for user [%s] on site [%s] is [%s]." % (args.username, args.site, _s))
+        else:
+            _log("Already copyed into system clipboard.")
+
     elif args.sub_cmd == SUB_CMD_RM:
         _check_file_exist([_pwd_file])
 
@@ -333,9 +356,11 @@ def main(args):
 
         g_os_adapter.copy_to_clipboard(s=_s)
 
-        if args.show:
-            _log(_s)
-        _log("Already copyed into system clipboard.")
+        if args.show or not g_os_adapter.clipboard:
+            _log("Password for user [%s] on site [%s] is [%s]." % (args.username, args.site, _s))
+
+        if g_os_adapter.clipboard:
+            _log("Already copyed into system clipboard.")
 
     return
 
@@ -346,7 +371,7 @@ if __name__ == "__main__":
     g_os_adapter = OSAdapter()
 
     if g_os_adapter.os_platform not in SUPPORTED_OS:
-        _log("Current OS platform [%s] not supported" % g_os_adapter.platform)
+        _log("Current OS platform [%s] not supported" % g_os_adapter.os_platform)
         sys.exit(1)
 
     parser = argparse.ArgumentParser()
@@ -361,41 +386,42 @@ if __name__ == "__main__":
 
     # TODO add -U --update
 
-    e_parser = sub_parsers.add_parser(SUB_CMD_ENCODE, help="Encode")
+    e_parser = sub_parsers.add_parser(SUB_CMD_ENCODE, help="[E]ncode a string.")
     e_parser.add_argument("string", help="""string to encode""")
-    e_parser.add_argument("-P", "--public-key", default=DEFAULT_PUBLIC_KEY, dest="public_key")
+    e_parser.add_argument("-P", "--public-key", dest="public_key")
     e_parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, dest="config")
 
-    d_parser = sub_parsers.add_parser(SUB_CMD_DECODE, help="Decode")
+    d_parser = sub_parsers.add_parser(SUB_CMD_DECODE, help="[D]ecode a string.")
     d_parser.add_argument("string", help="""string to decode""")
-    d_parser.add_argument("-P", "--private-key", default=DEFAULT_PRIVATE_KEY, dest="private_key")
+    d_parser.add_argument("-P", "--private-key", dest="private_key")
     d_parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, dest="config")
 
-    s_parser = sub_parsers.add_parser(SUB_CMD_ADD, help="Add")
+    s_parser = sub_parsers.add_parser(SUB_CMD_ADD, help="[A]dd a user/site/password to pwd file.")
     s_parser.add_argument("site")
     s_parser.add_argument("username")
     s_parser.add_argument("-W", "--pwdword", dest="password")
-    s_parser.add_argument("-p", "--pwd", default=DEFAULT_PWD, dest="pwd_file")
-    s_parser.add_argument("-P", "--public_key", default=DEFAULT_PUBLIC_KEY, dest="public_key")
+    s_parser.add_argument("-p", "--pwd", dest="pwd_file")
+    s_parser.add_argument("-P", "--public_key", dest="public_key")
     s_parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, dest="config")
 
-    s_parser = sub_parsers.add_parser(SUB_CMD_RM, help="Remove")
+    s_parser = sub_parsers.add_parser(SUB_CMD_RM, help="[R]emove a user/site from pwd file ")
     s_parser.add_argument("site")
     s_parser.add_argument("username")
-    s_parser.add_argument("-p", "--pwd", default=DEFAULT_PWD, dest="pwd_file")
+    s_parser.add_argument("-p", "--pwd", dest="pwd_file")
     s_parser.add_argument("-f", "--force", action="store_true", dest="force", default=False)
     s_parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, dest="config")
 
-    s_parser = sub_parsers.add_parser(SUB_CMD_LIST, help="List")
-    s_parser.add_argument("-p", "--pwd", default=DEFAULT_PWD, dest="pwd_file")
+    s_parser = sub_parsers.add_parser(SUB_CMD_LIST, help="[L]ist user/site lists from pwd file.")
+    s_parser.add_argument("-p", "--pwd", dest="pwd_file")
     s_parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, dest="config")
 
-    s_parser = sub_parsers.add_parser(SUB_CMD_OPEN, help="Open")
+    s_parser = sub_parsers.add_parser(SUB_CMD_OPEN, help="[O]pen(show) password for user on site.")
     s_parser.add_argument("site")
     s_parser.add_argument("username")
-    s_parser.add_argument("-p", "--pwd", default=DEFAULT_PWD, dest="pwd_file")
-    s_parser.add_argument("-P", "--private-key", default=DEFAULT_PRIVATE_KEY, dest="private_key")
-    s_parser.add_argument("-s", "--show", action="store_true", default=False, dest="show")
+    s_parser.add_argument("-p", "--pwd", dest="pwd_file")
+    s_parser.add_argument("-P", "--private-key", dest="private_key")
+    s_parser.add_argument("-s", "--show", action="store_true", default=False, dest="show",
+                          help="""Whether to show password in terminal.""")
     s_parser.add_argument("-c", "--config", default=DEFAULT_CONFIG, dest="config")
 
     args = parser.parse_args()
@@ -409,11 +435,11 @@ if __name__ == "__main__":
 
     load_config(os.path.expanduser(args.config))
 
-    if hasattr(args, "private_key"):
+    if getattr(args, "private_key", None):
         g_config["private_key"] = args.private_key
-    if hasattr(args, "public_key"):
+    if getattr(args, "public_key", None):
         g_config["public_key"] = args.public_key
-    if hasattr(args, "pwd_file"):
+    if getattr(args, "pwd_file", None):
         g_config["pwd"] = args.pwd_file
 
     for k in ["public_key", "private_key", "pwd"]:

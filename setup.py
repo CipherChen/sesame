@@ -9,7 +9,7 @@ setuptools.setup(
     version="1.0",
     author="Cipher Chen",
     author_email="cipher.chen2012@gmail.com",
-    description="Manage passwords yourself.",
+    description="Passwords in my own.",
     url="https://github.com/CipherChen/sesame",
     packages=setuptools.find_packages(),
     scripts=["bin/sesame"],

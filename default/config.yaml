@@ -6,5 +6,5 @@ private_key: "~/.ssh/id_rsa"
 # Encrypted password file.
 pwd: "~/.sesame/pwd"
 
-# Authentication user.
-# usr: "CipherChen"
+# Authentication user, default is current user.
+# usr: "root"
