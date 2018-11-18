@@ -1,3 +1,4 @@
+import os
 import setuptools
 
 with open("README.md", "r") as fh:
@@ -5,17 +6,17 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="sesame",
-    version="0.0.1",
+    version="1.0",
     author="Cipher Chen",
     author_email="cipher.chen2012@gmail.com",
     description="Manage passwords yourself.",
-    long_description=long_description,
-    long_description_content_type="text/markdown",
     url="https://github.com/CipherChen/sesame",
     packages=setuptools.find_packages(),
-    classifiers=[
-        "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License",
-        "Operating System :: OS Independent",
+    scripts=["bin/sesame"],
+    install_requires=[
+        "pycrypto>=2.6.1",
+    ],
+    data_files=[
+        ("%s/.sesame" % os.environ["HOME"], ["default/config.yaml"]),
     ],
 )

@@ -1,0 +1,10 @@
+# Public RSA key file to encrypt password.
+public_key: "~/.ssh/id_rsa.pub"
+# Private RSA key file to decrypt password.
+private_key: "~/.ssh/id_rsa"
+
+# Encrypted password file.
+pwd: "~/.sesame/pwd"
+
+# Authentication user.
+# usr: "CipherChen"
