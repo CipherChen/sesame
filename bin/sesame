@@ -240,6 +240,7 @@ def add_p(pwd_file, site, username, pub_key, passwd=None):
 
     passwd_s = encode_string(passwd, pub_key)
 
+    exec_cmd("mkdir -p %s" % os.path.dirname(pwd_file))
     with open(pwd_file, "a") as f:
         _s = " " + FIELD_SEPERATOR + " "
         f.write("\n" + _s.join((site.ljust(40), username.ljust(40), passwd_s)))
@@ -251,6 +252,10 @@ def add_p(pwd_file, site, username, pub_key, passwd=None):
 
 def rm_p(site, username, pwd_file, force):
     _authorization()
+
+    if not os.path.isfile(pwd_file):
+        _log("Pwd file [%s] not found" % pwd_file)
+        return
 
     new_lines = []
     with open(pwd_file, "r") as f:
