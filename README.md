@@ -1,6 +1,6 @@
 # SESAME OPEN（芝麻开门）
 
-> Passwords in my own.
+> Passwords on my own.
 
 ## 简介
 
@@ -18,7 +18,7 @@
 * 同步方便（假如换电脑，不需要再重复管理）
 * 免费：）
 
-这五大优势，我概括其为 "Passwords in my own."
+这五大优势，我概括其为 "Passwords on my own."
 
 ### 安全性
 
