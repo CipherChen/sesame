@@ -124,7 +124,7 @@ def load_config(filepath=DEFAULT_CONFIG):
     if os.path.isfile(filepath):
         with open(filepath, "r") as f:
             try:
-                ret = yaml.load(f.read())
+                ret = yaml.load(f.read(), Loader=yaml.FullLoader)
             except:
                 _error("load config [%s] failed" % filepath)
                 return g_config
